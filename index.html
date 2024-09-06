@@ -1,0 +1,205 @@
+<h1>PIR sensor speed camera: would this work?</h1>
+
+<p>I'm thinking of using two PIR sensors, spaced a few meters apart, to estimate the speed of passing drivers.</p>
+<p>This small simulation shows how off our estimates of speed would be if one of the PIR sensors was at less than a 90-degree angle, relative to the other sensor.</p>
+<p>In the graphic below, the first PIR sensor is represented by the bottom left corner of the box. The second sensor is the bottom left corner. The sight lines of the sensors into the street are represented by the vertical blue lines. If one of the sensors if pointed at an angle, that's represented by the red line.</p>
+
+<svg width="500px" height="250px" id='segment'>
+
+<p>How far apart are the sensors (in meters)?</p>
+<div class="slidecontainer">
+  <input type="range" min="1" max="5" value="0" class="slider" id="sensorSpacing">
+</div>
+<p style="display:inline">Sensor spacing (meters): </p>
+<p id='meters-apart' style="display:inline"></p>
+<br>
+
+<p>How many degrees are the sensors off?</p>
+<div class="slidecontainer">
+  <input type="range" min="0" max="80" value="0" class="slider" id="degreeSlider">
+</div>
+
+<p style="display:inline">Degrees off: </p>
+<p id='degrees' style="display:inline"></p>
+<br>
+<p style="display:inline">Radians off: </p>
+<p id='radians' style="display:inline"></p>
+
+<br><br>
+
+<p>This is the amount off you'll be for a car going 31 mph / 50 Kmph:</p>
+<p style="display:inline">Kmph measured: </p>
+<p id='kmph' style="display:inline"></p>
+<br>
+<p style="display:inline">Mph measured: </p>
+<p id='mph' style="display:inline"></p>
+
+
+<script>
+import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+
+function degrees_to_radians(degrees)
+{
+  // Store the value of pi.
+  var pi = Math.PI;
+  // Multiply degrees by pi divided by 180 to convert to radians.
+  return degrees * (pi/180);
+}
+
+var svg = d3.select("#segment").append("svg").attr("width", 800).attr("height", 200)
+var sensorSpacing = document.getElementById("sensorSpacing");
+var slider = document.getElementById("degreeSlider");
+var degrees = document.getElementById("degrees");
+var radians = document.getElementById("radians");
+var meters_apart = document.getElementById("meters-apart");
+var kmph = document.getElementById("kmph");
+var mph = document.getElementById("mph");
+var ma = 1;
+var degs = 0;
+var rads = 0;
+
+var inward_bias = 0;
+var shortened_distance = 0;
+var measured_speed_ms = 0.072;
+var measured_speed_kmph = 50;
+var measured_speed_mph = 31;
+
+svg.append('line')
+  .attr('x1', 0)
+  .attr('y1', 0)
+  .attr('x2', 0)
+  .attr('y2', 200)
+  .attr('stroke', 'blue')
+  .attr('stroke-width', '8')
+
+svg.append('line')
+  .attr('id', 'horizontal_line')
+  .attr('x1', 0)
+  .attr('y1', 200)
+  .attr('x2', ma*100)
+  .attr('y2', 200)
+  .attr('stroke', 'black')
+  .attr('stroke-width', '8')
+
+svg.append('line')
+  .attr('id', 'vertical_line')
+  .attr('x1', ma*100)
+  .attr('y1', 0)
+  .attr('x2', ma*100)
+  .attr('y2', 200)
+  .attr('stroke', 'blue')
+  .attr('stroke-width', '4')
+
+  
+degrees.innerHTML = slider.value; // Display the default slider value
+radians.innerHTML = degrees_to_radians(slider.value);
+meters_apart.innerHTML = sensorSpacing.value;
+
+
+// Update the current slider value (each time you drag the slider handle)
+slider.oninput = function() {
+  degrees.innerHTML = this.value;
+  var rads = degrees_to_radians(this.value)
+  radians.innerHTML = rads;
+  
+  ma = meters_apart.innerHTML
+  inward_bias = 2*Math.atan(rads);
+  shortened_distance = ma - inward_bias;
+  measured_speed_ms = 0.072*shortened_distance;
+  measured_speed_kmph = 1/measured_speed_ms*3600*ma/1000;
+  measured_speed_mph = measured_speed_kmph*0.621371
+
+  kmph.innerHTML = Math.round(measured_speed_kmph);
+  mph.innerHTML = Math.round(measured_speed_mph);
+  
+  if (document.contains(document.getElementById("error_line"))) {
+    document.getElementById("error_line").remove();
+  } 
+  
+  document.getElementById("horizontal_line").remove();
+  document.getElementById("vertical_line").remove();
+  
+  svg.append('line')
+  .attr('id', 'error_line')
+  .attr('x1', shortened_distance*100)
+  .attr('y1', 0)
+  .attr('x2', ma*100)
+  .attr('y2', 200)
+  .attr('stroke', 'red')
+  .attr('stroke-width', '4')
+
+  svg.append('line')
+  .attr('id', 'horizontal_line')
+  .attr('x1', 0)
+  .attr('y1', 200)
+  .attr('x2', ma*100)
+  .attr('y2', 200)
+  .attr('stroke', 'black')
+  .attr('stroke-width', '8')
+  
+  svg.append('line')
+  .attr('id', 'vertical_line')
+  .attr('x1', ma*100)
+  .attr('y1', 0)
+  .attr('x2', ma*100)
+  .attr('y2', 200)
+  .attr('stroke', 'blue')
+  .attr('stroke-width', '4')
+}
+
+
+sensorSpacing.oninput = function() {
+  meters_apart.innerHTML = this.value;
+  ma = meters_apart.innerHTML
+  
+  degs = degrees.innerHTML;
+  rads = degrees_to_radians(degs);
+  
+  inward_bias = 2*Math.atan(rads);
+  shortened_distance = ma - inward_bias;
+  measured_speed_ms = 0.072*shortened_distance;
+  measured_speed_kmph = 1/measured_speed_ms*3600*ma/1000;
+  measured_speed_mph = measured_speed_kmph*0.621371
+  
+  kmph.innerHTML = Math.round(measured_speed_kmph);
+  mph.innerHTML = Math.round(measured_speed_mph);
+  
+   if (document.contains(document.getElementById("error_line"))) {
+    document.getElementById("error_line").remove();
+  } 
+  
+  document.getElementById("horizontal_line").remove();
+  document.getElementById("vertical_line").remove();
+  
+  svg.append('line')
+  .attr('id', 'error_line')
+  .attr('x1', shortened_distance*100)
+  .attr('y1', 0)
+  .attr('x2', ma*100)
+  .attr('y2', 200)
+  .attr('stroke', 'red')
+  .attr('stroke-width', '4')
+
+  svg.append('line')
+  .attr('id', 'horizontal_line')
+  .attr('x1', 0)
+  .attr('y1', 200)
+  .attr('x2', ma*100)
+  .attr('y2', 200)
+  .attr('stroke', 'black')
+  .attr('stroke-width', '8')
+  
+  svg.append('line')
+  .attr('id', 'vertical_line')
+  .attr('x1', ma*100)
+  .attr('y1', 0)
+  .attr('x2', ma*100)
+  .attr('y2', 200)
+  .attr('stroke', 'blue')
+  .attr('stroke-width', '4')
+}
+
+  
+</script>
+
+
